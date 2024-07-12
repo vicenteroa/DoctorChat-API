@@ -12,13 +12,13 @@ export class AuthService {
     private readonly registerUserUseCase: RegisterUserUseCase,
   ) {}
 
-  async register(registerUserDto: RegisterUserDto): Promise<void> {
+  async register(registerUserDto: RegisterUserDto): Promise<string> {
     const { user, email, password, name, rut } = registerUserDto;
 
     try {
       const userEntity = new User(user, email, password, name, rut);
 
-      this.registerUserUseCase.execute(userEntity);
+      const message = this.registerUserUseCase.execute(userEntity);
 
       // Registrar en Firebase Authentication
       const userCredential = await this.firebaseService.getAuth().createUser({
@@ -41,8 +41,10 @@ export class AuthService {
         .collection("users")
         .doc(userId)
         .set(firestoreUser);
+
+      return message;
     } catch (error) {
-      throw new Error(`Failed to register user: ${error.message}`);
+      throw new Error("Error al registrar el usuario verifique sus datos");
     }
   }
 
@@ -53,7 +55,7 @@ export class AuthService {
         .verifyIdToken(token);
       return decodedToken;
     } catch (error) {
-      throw new Error(`Failed to verify user: ${error.message}`);
+      throw new Error("Error al verificar el token");
     }
   }
 }
