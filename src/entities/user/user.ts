@@ -1,30 +1,66 @@
-export class User {
+import { IUser } from "./Iuser";
+
+export class User implements IUser {
+  id?: string;
+  user: string;
+  email: string;
+  password: string;
+  name: string;
+  rut: string;
+
   constructor(
-    public user: string,
-    public email: string,
-    public password: string,
-    public name: string,
-    public rut: string,
-  ) {}
+    user: string,
+    email: string,
+    password: string,
+    name: string,
+    rut: string,
+  ) {
+    if (!user || !email || !password || !name || !rut) {
+      throw new Error("Todos los campos son obligatorios");
+    }
+    this.user = user;
+    this.email = email;
+    this.password = password;
+    this.name = name;
+    this.rut = rut;
 
-  isValid(): boolean {
-    const isEmailValid = this.EmailIsValid();
-    const isPasswordValid = this.PasswordIsValid();
-
-    return isEmailValid && isPasswordValid;
+    this.ValidateRut(rut);
+    this.ValidateEmail(email);
   }
 
-  EmailIsValid(): boolean {
-    const isValid = this.email.match(/^\S+@\S+\.\S+$/) !== null;
-    if (!isValid) {
+  ValidateEmail(email: string): void {
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error("Email inválido");
     }
-    return isValid;
   }
-
-  PasswordIsValid(): boolean {
-    const isValid = this.password.length >= 6;
-    if (!isValid) {
+  private ValidateRut(rut: string): void {
+    const rutClean = rut.replace(/\s|-|\.|,/g, "").toUpperCase();
+    const rutRegex = /^\d{7,8}[0-9K]$/;
+    if (!rutRegex.test(rutClean)) {
+      throw new Error("Invalid RUT format");
     }
-    return isValid;
+
+    const body = rutClean.slice(0, -1);
+    const dv = rutClean.slice(-1);
+
+    if (dv !== this.calculateDV(body)) {
+      throw new Error("Invalid RUT digit verifier");
+    }
+  }
+  private calculateDV(body: string): string {
+    let sum = 0;
+    let multiplier = 2;
+
+    for (let i = body.length - 1; i >= 0; i--) {
+      sum += parseInt(body.charAt(i), 10) * multiplier;
+      multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    }
+
+    const remainder = 11 - (sum % 11);
+
+    if (remainder === 11) return "0";
+    if (remainder === 10) return "K";
+    return remainder.toString();
   }
 }

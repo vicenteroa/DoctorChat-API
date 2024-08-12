@@ -1,12 +1,13 @@
-import * as admin from "firebase-admin";
 import { Injectable } from "@nestjs/common";
 import { RegisterUserUseCase } from "src/use_cases/register-user/register-user";
 import { RegisterUserDto } from "src/dtos/register-user.dto";
-import { FirebaseService } from "src/firebaseConfig";
+import { FirebaseService } from "src/services/firebase/firebase.service";
 import { User } from "src/entities/user/user";
+import { Logger } from "@nestjs/common";
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger("AuthService");
   constructor(
     private readonly firebaseService: FirebaseService,
     private readonly registerUserUseCase: RegisterUserUseCase,
@@ -17,45 +18,16 @@ export class AuthService {
 
     try {
       const userEntity = new User(user, email, password, name, rut);
-
-      const message = this.registerUserUseCase.execute(userEntity);
-
-      // Registrar en Firebase Authentication
-      const userCredential = await this.firebaseService.getAuth().createUser({
-        email: userEntity.email,
-        password: userEntity.password,
-      });
-
-      const userId = userCredential.uid;
-
-      // Registrar en Firestore
-      const firestoreUser = {
-        id: userId,
-        rut: userEntity.rut,
-        email: userEntity.email,
-        name: userEntity.name,
-      };
-
-      await this.firebaseService
-        .getFirestore()
-        .collection("users")
-        .doc(userId)
-        .set(firestoreUser);
+      const message = await this.registerUserUseCase.execute(userEntity);
 
       return message;
-    } catch (error) {
+    } catch (e) {
+      this.logger.error("Error al registrar el usuario", e.stack);
       throw new Error("Error al registrar el usuario verifique sus datos");
     }
   }
 
-  async verifyUser(token: string): Promise<admin.auth.DecodedIdToken> {
-    try {
-      const decodedToken = await this.firebaseService
-        .getAuth()
-        .verifyIdToken(token);
-      return decodedToken;
-    } catch (error) {
-      throw new Error("Error al verificar el token");
-    }
+  async verifyUser(token: string): Promise<any> {
+    return this.firebaseService.verifyToken(token);
   }
 }
