@@ -26,4 +26,9 @@ describe("User Class", () => {
         new User("username", "email@email.com", "password", "name", "21287775"),
     ).toThrow("Invalid RUT digit verifier");
   });
+  it("should throw an error if sometgin is missing atributes", () => {
+    expect(
+      () => new User("username", "email@email.com", "password", "name", ""),
+    ).toThrow("Todos los campos son obligatorios");
+  });
 });

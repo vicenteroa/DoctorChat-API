@@ -34,6 +34,7 @@ export class FirebaseService {
       id: user.id,
       user: user.user,
       rut: user.rut,
+      password: user.password,
       email: user.email,
       name: user.name,
     };
