@@ -8,7 +8,7 @@ export class AI implements Iai {
 
   constructor(
     public symptoms: string,
-    public response: string,
+    public response: string = "",
     public model: string = "gemini-1.5-flash",
     public temperature: number = 0.7,
     public maxOutputTokens: number = 1000,
@@ -18,7 +18,7 @@ export class AI implements Iai {
   static create(symptoms: string, options?: Partial<AI>): AI {
     return new AI(
       symptoms,
-      options?.response,
+      options?.response || "",
       options?.model || "gemini-1.5-flash",
       options?.temperature || 0.7,
       options?.maxOutputTokens || 1000,
@@ -33,6 +33,7 @@ export class AI implements Iai {
       model: this.model,
       temperature: this.temperature,
       maxOutputTokens: this.maxOutputTokens,
+      response: this.response,
     };
   }
 }
