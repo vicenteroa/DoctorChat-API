@@ -2,23 +2,32 @@ import { Injectable } from "@nestjs/common";
 import * as admin from "firebase-admin";
 import { User } from "src/entities/user/user";
 import { ConfigService } from "@nestjs/config";
+import { v4 as uuidv4 } from "uuid";
 
 @Injectable()
 export class FirebaseService {
   private firebaseApp: admin.app.App;
 
   constructor(private configService: ConfigService) {
-    const firebaseConfig = {
-      projectId: this.configService.get<string>("FIREBASE_PROJECTID"),
-      clientEmail: this.configService.get<string>("FIREBASE_CLIENT_EMAIL"),
-      privateKey: this.configService
-        .get<string>("FIREBASE_PRIVATE_KEY")
-        ?.replace(/\\n/g, "\n"),
-    };
+    if (admin.apps.length === 0) {
+      const firebaseConfig = {
+        projectId: this.configService.get<string>("FIREBASE_PROJECTID"),
+        clientEmail: this.configService.get<string>("FIREBASE_CLIENT_EMAIL"),
+        storageBucket: this.configService.get<string>("FIREBASE_STORAGEBUCKET"),
+        privateKey: this.configService
+          .get<string>("FIREBASE_PRIVATE_KEY")
+          ?.replace(/\\n/g, "\n"),
+      };
 
-    this.firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert(firebaseConfig),
-    });
+      // Inicializa la aplicación de Firebase
+      this.firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert(firebaseConfig),
+        storageBucket: firebaseConfig.storageBucket,
+      });
+    } else {
+      // Usa la instancia existente
+      this.firebaseApp = admin.apps[0];
+    }
   }
 
   getAuth() {
@@ -27,6 +36,10 @@ export class FirebaseService {
 
   getFirestore() {
     return this.firebaseApp.firestore();
+  }
+
+  getStorage() {
+    return admin.storage(); // Agregar este método para acceder al almacenamiento
   }
 
   async createUserStore(user: User): Promise<void> {
@@ -89,5 +102,57 @@ export class FirebaseService {
     userId: string,
   ): Promise<admin.firestore.WriteResult> {
     return this.getFirestore().collection("users").doc(userId).delete();
+  }
+
+  async copyFileToStorage(
+    sourcePath: string,
+    destinationPath: string,
+  ): Promise<void> {
+    const bucket = this.getStorage().bucket(); // Obtener el bucket
+    await bucket.file(sourcePath).copy(destinationPath);
+  }
+
+  async deleteFileFromStorage(filePath: string): Promise<void> {
+    const bucket = this.getStorage().bucket();
+    await bucket.file(filePath).delete();
+  }
+  async uploadFile(filePath: string, destinationPath: string): Promise<string> {
+    const bucket = this.getStorage().bucket();
+    const token = uuidv4();
+
+    await bucket.upload(filePath, {
+      destination: destinationPath,
+      metadata: {
+        contentType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        metadata: {
+          firebaseStorageDownloadTokens: token,
+        },
+      },
+    });
+
+    return destinationPath;
+  }
+  async downloadFile(
+    sourcePath: string,
+    destinationPath: string,
+  ): Promise<void> {
+    const bucket = this.getStorage().bucket();
+    await bucket.file(sourcePath).download({ destination: destinationPath });
+  }
+  async checkFileExists(filePath: string): Promise<boolean> {
+    const bucket = this.getStorage().bucket();
+    const file = bucket.file(filePath);
+    const [exists] = await file.exists();
+    return exists;
+  }
+  async getDownloadURL(filePath: string): Promise<string> {
+    const bucket = this.getStorage().bucket();
+    const file = bucket.file(filePath);
+    const [url] = await file.getSignedUrl({
+      action: "read",
+      expires: Date.now() + 1000 * 60 * 60,
+    });
+    return url;
   }
 }
