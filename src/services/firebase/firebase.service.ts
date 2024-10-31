@@ -57,6 +57,19 @@ export class FirebaseService {
       .set(firestoreUser);
   }
 
+  async createCitasStore(
+    user_uid: string,
+    fecha: string,
+    doctor_uid: string,
+  ): Promise<void> {
+    const citasStore = {
+      user_uid: user_uid,
+      fecha: fecha,
+      doctor_uid: doctor_uid,
+    };
+    await this.getFirestore().collection("citas").doc().set(citasStore);
+  }
+
   async createUserAuth(user: User): Promise<admin.auth.UserRecord> {
     return this.getAuth().createUser({
       email: user.email,
