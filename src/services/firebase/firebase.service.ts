@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import * as admin from "firebase-admin";
 import { User } from "src/entities/user/user";
+import { Doctor } from "src/entities/doctor/doctor";
 import { ConfigService } from "@nestjs/config";
 import { v4 as uuidv4 } from "uuid";
 
@@ -57,6 +58,22 @@ export class FirebaseService {
       .set(firestoreUser);
   }
 
+  async createDoctorStore(doctor: Doctor): Promise<void> {
+    const doctorStore = {
+      id: doctor.id,
+      user: doctor.user,
+      email: doctor.email,
+      password: doctor.password,
+      name: doctor.name,
+      rut: doctor.rut,
+      specialist: doctor.specialist,
+    };
+    await this.getFirestore()
+      .collection("doctors")
+      .doc(doctor.id)
+      .set(doctorStore);
+  }
+
   async createCitasStore(
     user_uid: string,
     fecha: string,
@@ -75,6 +92,22 @@ export class FirebaseService {
       email: user.email,
       password: user.password,
     });
+  }
+
+  async ValidateUserAndDoctor(user_uid: string, doctor_uid: string) {
+    const user = await this.getFirestore()
+      .collection("users")
+      .where("id", "==", user_uid)
+      .get();
+    const doctor = await this.getFirestore()
+      .collection("users")
+      .where("id", "==", doctor_uid)
+      .get();
+
+    return {
+      userExists: !user.empty,
+      doctorExists: !doctor.empty,
+    };
   }
 
   async getUser(userId: string): Promise<admin.auth.UserRecord> {
