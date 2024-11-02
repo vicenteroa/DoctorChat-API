@@ -2,6 +2,7 @@ import { Controller, Post, Body, Res } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { RegisterUserDto } from "src/dtos/register-user.dto";
 import { Response } from "express";
+import { Doctor } from "src/entities/doctor/doctor";
 
 @Controller("auth")
 export class AuthController {
@@ -23,5 +24,9 @@ export class AuthController {
   @Post("verifyToken")
   async verifyToken(@Body() token: string): Promise<any> {
     return this.authService.verifyUser(token);
+  }
+  @Post("registerDoctor")
+  async registerDoctor(@Body() doctor: Doctor): Promise<void> {
+    return this.authService.register_doctor(doctor);
   }
 }
