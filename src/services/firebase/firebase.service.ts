@@ -48,7 +48,6 @@ export class FirebaseService {
       id: user.id,
       user: user.user,
       rut: user.rut,
-      password: user.password,
       email: user.email,
       name: user.name,
     };
@@ -63,7 +62,6 @@ export class FirebaseService {
       id: doctor.id,
       user: doctor.user,
       email: doctor.email,
-      password: doctor.password,
       name: doctor.name,
       rut: doctor.rut,
       specialist: doctor.specialist,

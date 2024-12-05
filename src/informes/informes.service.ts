@@ -6,8 +6,9 @@ import {
 import { AI } from "src/entities/ai/ai";
 import { ConfigService } from "@nestjs/config";
 import { FirebaseService } from "src/services/firebase/firebase.service";
-import * as ExcelJS from "exceljs";
+import * as PDFDocument from "pdfkit";
 import * as path from "path";
+import * as fs from "fs";
 
 @Injectable()
 export class informesService {
@@ -29,6 +30,7 @@ export class informesService {
     recomendacionEspecialista:
       "Ofrecele consejos al especialista recomendado , debes decirle por ejemplo que debiese preguntar al paciente al llegar a la consulta que cosas del cuerpo le podria revisar(no debe incluir titulos solo texto sin formato markdown debe ser Breve) : ",
   };
+
   async generateReport(chat: string): Promise<string> {
     const preInformeAI = AI.create(chat);
     const resumenAI = AI.create(chat);
@@ -49,16 +51,16 @@ export class informesService {
 
     const sourceFilePath = path.join(
       __dirname,
-      "../../temp/doctorchat_informe_medico.xlsx",
+      "../../temp/doctorchat_informe_medico.pdf",
     );
 
-    await this.modifyExcelFile(sourceFilePath, {
+    await this.modifyPDFFile(sourceFilePath, {
       preInforme: preInformeResponse,
       resumen: resumenResponse,
       recomendacion: recomendacionResponse,
     });
 
-    const newFileName = `informes/modified_report_${Date.now()}.xlsx`;
+    const newFileName = `informes/modified_report_${Date.now()}.pdf`;
 
     // Sube el archivo modificado a Firebase Storage y obtiene el path
     const uploadedFilePath = await this.firebaseService.uploadFile(
@@ -84,26 +86,72 @@ export class informesService {
     return ai.response;
   }
 
-  private async modifyExcelFile(
+  private async modifyPDFFile(
     sourceFilePath: string,
     responses: { preInforme: string; resumen: string; recomendacion: string },
   ): Promise<void> {
-    const workbook = new ExcelJS.Workbook();
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
 
-    await workbook.xlsx.readFile(sourceFilePath);
+    // Define the path for the new PDF file
+    const pdfFilePath = sourceFilePath.replace(".xlsx", ".pdf");
 
-    const worksheet = workbook.getWorksheet(1);
+    // Create a write stream for the new PDF file
+    const writeStream = fs.createWriteStream(pdfFilePath);
+    doc.pipe(writeStream);
 
-    // Limpia las celdas antes de agregar nuevos valores
-    worksheet.getCell("A11").value = null;
-    worksheet.getCell("A19").value = null;
-    worksheet.getCell("A26").value = null;
-    // Agrega nuevo valor
-    worksheet.getCell("A11").value = responses.preInforme;
-    worksheet.getCell("A19").value = responses.resumen;
-    worksheet.getCell("A26").value = responses.recomendacion;
+    // Add a title
+    doc.fontSize(22).text("Informe Médico", { align: "center" });
+    doc.moveDown(2); // Agrega espacio después del título
 
-    // Guarda los cambios en el mismo archivo
-    await workbook.xlsx.writeFile(sourceFilePath);
+    // Add pre Informe Médico
+    doc
+      .fontSize(14)
+      .text("Pre Informe Médico:", { underline: true, align: "left" });
+    doc.fontSize(12).text(responses.preInforme, { align: "left" });
+    doc.moveDown();
+
+    // Add Resumen de Síntomas
+    doc
+      .fontSize(14)
+      .text("Resumen de Síntomas:", { underline: true, align: "left" });
+    doc.fontSize(12).text(responses.resumen, { align: "left" });
+    doc.moveDown();
+
+    // Add Recomendación al Especialista
+    doc
+      .fontSize(14)
+      .text("Recomendación al Especialista:", {
+        underline: true,
+        align: "left",
+      });
+    doc.fontSize(12).text(responses.recomendacion, { align: "left" });
+
+    // Add footer (e.g., page number)
+    doc.moveDown();
+    doc
+      .fontSize(10)
+      .text("Informe generado automáticamente", { align: "center" });
+
+    // Add pagination
+    doc.on("pageAdded", () => {
+      doc
+        .fontSize(10)
+        .text(`Página ${doc.page} de {PAGE_COUNT}`, {
+          align: "center",
+          continued: false,
+        });
+    });
+
+    // Finalize the PDF and end the stream
+    doc.end();
+
+    // Wait for the write stream to finish
+    await new Promise((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    // Replace the sourceFilePath with the new PDF file path
+    sourceFilePath = pdfFilePath;
   }
 }
